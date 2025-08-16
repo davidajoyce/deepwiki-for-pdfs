@@ -145,38 +145,46 @@ class AIChatService {
   }
 
   private async generateResponse(question: string, references: DocumentReference[]): Promise<string> {
-    // Simulated AI response generation
+    // Simulated AI response generation with clickable references
     // In production, this would call OpenAI/Anthropic API
     
     if (references.length === 0) {
       return `I couldn't find specific information about "${question}" in your uploaded documents. Try asking about topics that are covered in your PDFs, or upload documents that contain relevant information.`;
     }
 
-    // Generate a contextual response based on the references
-    const context = references.map(ref => ref.excerpt).join(' ');
+    // Generate a contextual response with embedded clickable references
+    let response = `Based on your documents, here's what I found about "${question}":
+
+${this.summarizeContentWithReferences(references)}
+
+This information is sourced from ${references.length} relevant section${references.length > 1 ? 's' : ''} across your documents.`;
+
+    return response;
+  }
+
+  private summarizeContentWithReferences(references: DocumentReference[]): string {
+    if (references.length === 0) return "No relevant content found.";
     
-    // Simple template-based response (would be AI-generated in production)
-    const responses = [
-      `Based on your documents, here's what I found about "${question}":
+    // Group references by document
+    const byDocument = new Map<string, DocumentReference[]>();
+    references.forEach(ref => {
+      const existing = byDocument.get(ref.documentName) || [];
+      existing.push(ref);
+      byDocument.set(ref.documentName, existing);
+    });
 
-${this.summarizeContent(references)}
+    let summary = '';
+    byDocument.forEach((refs, docName) => {
+      summary += `**From ${docName}:**\n`;
+      refs.forEach(ref => {
+        // Create clickable reference link like DeepWiki
+        const refLink = `[${docName}:page${ref.pageNumber}](ref:${ref.documentId}:${ref.pageNumber})`;
+        summary += `- ${ref.excerpt} ${refLink}\n`;
+      });
+      summary += '\n';
+    });
 
-The information comes from ${references.length} relevant section${references.length > 1 ? 's' : ''} across your documents. You can see the specific references on the right panel for more context.`,
-
-      `I found several relevant passages about "${question}" in your documents:
-
-${this.summarizeContent(references)}
-
-These insights are drawn from ${references.map(r => r.documentName).join(', ')}. Check the references panel for exact page numbers and full context.`,
-
-      `Regarding "${question}", your documents contain the following information:
-
-${this.summarizeContent(references)}
-
-This summary is based on ${references.length} relevant passage${references.length > 1 ? 's' : ''} found in your uploaded PDFs. See the references for more detailed information.`
-    ];
-
-    return responses[Math.floor(Math.random() * responses.length)];
+    return summary.trim();
   }
 
   private summarizeContent(references: DocumentReference[]): string {
