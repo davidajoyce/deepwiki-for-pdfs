@@ -23,6 +23,8 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([]);
   const [allReferences, setAllReferences] = useState<DocumentReference[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const referencePanelRef = useRef<HTMLDivElement>(null);
 
   // Update AI service with documents when they change
   useEffect(() => {
@@ -30,9 +32,17 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
     setMessages(aiChatService.getChatHistory());
   }, [documents]);
 
-  // Auto-scroll to bottom when new messages are added
+  // Auto-scroll to bottom when new messages are added (but only if user is near bottom)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (chatContainerRef.current) {
+      const container = chatContainerRef.current;
+      const { scrollTop, scrollHeight, clientHeight } = container;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      
+      if (isNearBottom) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
   }, [messages]);
 
   const handleSendMessage = async (question: string = currentQuestion) => {
@@ -92,6 +102,22 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
 
   const handleReferenceClick = (reference: DocumentReference) => {
     setSelectedReference(reference);
+    
+    // Auto-scroll to the reference in the right panel after a short delay
+    // This ensures the document section expands first before scrolling
+    setTimeout(() => {
+      if (referencePanelRef.current) {
+        const referenceElement = referencePanelRef.current.querySelector(
+          `[data-reference-id="${reference.documentId}:${reference.pageNumber}"]`
+        );
+        if (referenceElement) {
+          referenceElement.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'center' 
+          });
+        }
+      }
+    }, 100); // Small delay to allow expansion to complete
   };
 
   // Handle clicks on reference links in the chat
@@ -127,11 +153,11 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
   }
 
   return (
-    <div className="h-screen flex">
-      {/* Main Chat Panel */}
-      <div className="flex-1 flex flex-col">
+    <div className="h-screen flex relative">
+      {/* Main Chat Panel - DeepWiki Style */}
+      <div className="flex-1 flex flex-col relative">
         {/* Header */}
-        <div className="border-b border-gray-200 dark:border-gray-700 p-4">
+        <div className="border-b border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900 z-10">
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold">Chat with Your Documents</h1>
@@ -150,18 +176,22 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
           </div>
         </div>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Scrollable Messages Area - DeepWiki Style */}
+        <div 
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto pb-32 bg-white dark:bg-gray-900"
+          style={{ scrollBehavior: 'smooth' }}
+        >
           {messages.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-4">🤖</div>
-              <h3 className="text-lg font-medium mb-2">Start a conversation</h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+            <div className="text-center py-16 px-4">
+              <div className="text-4xl mb-6">🤖</div>
+              <h3 className="text-xl font-medium mb-4">Start a conversation</h3>
+              <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-lg mx-auto">
                 Ask me anything about your documents. I'll find relevant information and provide sources.
               </p>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Try asking:</p>
-                <div className="flex flex-wrap gap-2 justify-center">
+                <div className="flex flex-wrap gap-2 justify-center max-w-2xl mx-auto">
                   {[
                     "What are the main topics covered?",
                     "Summarize the key points",
@@ -171,7 +201,7 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
                     <button
                       key={index}
                       onClick={() => handleSendMessage(suggestion)}
-                      className="px-3 py-1 text-xs bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800"
+                      className="px-4 py-2 text-sm bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors"
                     >
                       {suggestion}
                     </button>
@@ -180,96 +210,138 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
               </div>
             </div>
           ) : (
-            <>
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[80%] p-3 rounded-lg ${
-                      message.type === 'user'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100'
-                    }`}
-                    onClick={handleMessageClick}
-                  >
-                    <div
-                      dangerouslySetInnerHTML={{
-                        __html: formatMessageContent(message.content)
-                      }}
-                    />
-                    {message.references && message.references.length > 0 && (
-                      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600">
-                        <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">
-                          Sources: {message.references.length} reference{message.references.length > 1 ? 's' : ''} • Click blue links to view
-                        </p>
+            <div className="space-y-6 p-4">
+              {messages.map((message, index) => (
+                <div key={message.id} className="space-y-4">
+                  {/* Question */}
+                  {message.type === 'user' && (
+                    <div className="flex items-start space-x-3">
+                      <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                        Q
                       </div>
-                    )}
-                  </div>
+                      <div className="flex-1">
+                        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+                          <p className="text-gray-900 dark:text-gray-100 font-medium">{message.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Answer */}
+                  {message.type === 'assistant' && (
+                    <div className="flex items-start space-x-3 ml-8">
+                      <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                        A
+                      </div>
+                      <div className="flex-1">
+                        <div 
+                          className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4"
+                          onClick={handleMessageClick}
+                        >
+                          <div
+                            className="prose dark:prose-invert max-w-none"
+                            dangerouslySetInnerHTML={{
+                              __html: formatMessageContent(message.content)
+                            }}
+                          />
+                          {message.references && message.references.length > 0 && (
+                            <div className="mt-4 pt-3 border-t border-gray-200 dark:border-gray-600">
+                              <div className="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                                </svg>
+                                <span>
+                                  {message.references.length} reference{message.references.length > 1 ? 's' : ''} • Click blue links to view in panel
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Suggested Questions after each answer */}
+                  {message.type === 'assistant' && index === messages.length - 1 && suggestedQuestions.length > 0 && (
+                    <div className="ml-16 mt-4">
+                      <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Related questions:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {suggestedQuestions.map((question, qIndex) => (
+                          <button
+                            key={qIndex}
+                            onClick={() => handleSendMessage(question)}
+                            className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+                            disabled={isLoading}
+                          >
+                            {question}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
               
               {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg">
-                    <div className="flex items-center space-x-2">
-                      <div className="animate-spin w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full"></div>
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Thinking...</span>
+                <div className="flex items-start space-x-3 ml-8">
+                  <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center text-white text-sm font-medium">
+                    A
+                  </div>
+                  <div className="flex-1">
+                    <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <div className="animate-spin w-4 h-4 border-2 border-green-600 border-t-transparent rounded-full"></div>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Thinking...</span>
+                      </div>
                     </div>
                   </div>
                 </div>
               )}
-            </>
+              
+              <div ref={messagesEndRef} />
+            </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
-        {/* Suggested Questions */}
-        {suggestedQuestions.length > 0 && (
-          <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Related questions:</p>
-            <div className="flex flex-wrap gap-2">
-              {suggestedQuestions.map((question, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSendMessage(question)}
-                  className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
+        {/* Floating Input Box - DeepWiki Style */}
+        <div className="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 z-20">
+          <div className="max-w-4xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg">
+              <div className="flex space-x-3 p-4">
+                <textarea
+                  value={currentQuestion}
+                  onChange={(e) => setCurrentQuestion(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Ask me a question about your documents..."
+                  className="flex-1 resize-none border-0 bg-transparent focus:outline-none focus:ring-0 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
+                  rows={1}
                   disabled={isLoading}
+                />
+                <button
+                  onClick={() => handleSendMessage()}
+                  disabled={isLoading || !currentQuestion.trim()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center space-x-2"
                 >
-                  {question}
+                  {isLoading ? (
+                    <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full"></div>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+                      </svg>
+                      <span>Send</span>
+                    </>
+                  )}
                 </button>
-              ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {/* Input Area */}
-        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
-          <div className="flex space-x-2">
-            <textarea
-              value={currentQuestion}
-              onChange={(e) => setCurrentQuestion(e.target.value)}
-              onKeyPress={handleKeyPress}
-              placeholder="Ask a question about your documents..."
-              className="flex-1 p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent dark:bg-gray-800 dark:text-white resize-none"
-              rows={2}
-              disabled={isLoading}
-            />
-            <button
-              onClick={() => handleSendMessage()}
-              disabled={isLoading || !currentQuestion.trim()}
-              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? "..." : "Send"}
-            </button>
           </div>
         </div>
       </div>
 
       {/* Enhanced References Panel - DeepWiki Style */}
-      <div className="w-96 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="w-96 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <h2 className="font-semibold text-gray-900 dark:text-gray-100">Document References</h2>
           {allReferences.length > 0 && (
             <p className="text-xs text-gray-500 mt-1">
@@ -278,7 +350,11 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
           )}
         </div>
         
-        <div className="h-full overflow-hidden">
+        <div 
+          ref={referencePanelRef}
+          className="flex-1 overflow-y-auto"
+          style={{ scrollBehavior: 'smooth' }}
+        >
           <PDFReferenceViewer
             documents={documents}
             activeReference={selectedReference}

@@ -27,6 +27,13 @@ interface ExpandedSections {
   [documentId: string]: boolean;
 }
 
+interface ExpandedContext {
+  [referenceKey: string]: {
+    before: number;
+    after: number;
+  };
+}
+
 export default function PDFReferenceViewer({ 
   documents, 
   activeReference, 
@@ -35,6 +42,7 @@ export default function PDFReferenceViewer({
 }: PDFReferenceViewerProps) {
   const [expandedSections, setExpandedSections] = useState<ExpandedSections>({});
   const [highlightedSection, setHighlightedSection] = useState<string | null>(null);
+  const [expandedContext, setExpandedContext] = useState<ExpandedContext>({});
 
   // Auto-expand when activeReference changes
   useEffect(() => {
@@ -61,6 +69,83 @@ export default function PDFReferenceViewer({
   const formatContent = (content: string, maxLength: number = 500) => {
     if (content.length <= maxLength) return content;
     return content.substring(0, maxLength) + "...";
+  };
+
+  const expandContextBefore = (referenceKey: string) => {
+    setExpandedContext(prev => ({
+      ...prev,
+      [referenceKey]: {
+        before: (prev[referenceKey]?.before || 0) + 200,
+        after: prev[referenceKey]?.after || 0
+      }
+    }));
+  };
+
+  const expandContextAfter = (referenceKey: string) => {
+    setExpandedContext(prev => ({
+      ...prev,
+      [referenceKey]: {
+        before: prev[referenceKey]?.before || 0,
+        after: (prev[referenceKey]?.after || 0) + 200
+      }
+    }));
+  };
+
+  const getExpandedContent = (document: Document, pageNumber: number, referenceKey: string, reference: DocumentReference) => {
+    const section = document.analysis?.sections?.find(s => s.page_number === pageNumber);
+    if (!section) return reference.relevantText;
+
+    const expansion = expandedContext[referenceKey];
+    
+    // If no expansion, return a focused excerpt around the relevant text
+    if (!expansion || (expansion.before === 0 && expansion.after === 0)) {
+      return getRelevantExcerpt(section.content, reference.excerpt);
+    }
+
+    // Get content from current section plus additional context
+    let expandedContent = section.content;
+
+    // Try to get more content from adjacent sections/pages
+    if (expansion.before > 0) {
+      const prevSection = document.analysis?.sections?.find(s => s.page_number === pageNumber - 1);
+      if (prevSection) {
+        const beforeText = prevSection.content.slice(-expansion.before);
+        expandedContent = beforeText + '\n\n--- Page Break ---\n\n' + expandedContent;
+      }
+    }
+
+    if (expansion.after > 0) {
+      const nextSection = document.analysis?.sections?.find(s => s.page_number === pageNumber + 1);
+      if (nextSection) {
+        const afterText = nextSection.content.slice(0, expansion.after);
+        expandedContent = expandedContent + '\n\n--- Page Break ---\n\n' + afterText;
+      }
+    }
+
+    return expandedContent;
+  };
+
+  const getRelevantExcerpt = (content: string, excerpt: string) => {
+    // Find the excerpt in the content
+    const excerptIndex = content.toLowerCase().indexOf(excerpt.toLowerCase());
+    if (excerptIndex === -1) {
+      // If excerpt not found, return first part of content
+      return formatContent(content, 300);
+    }
+
+    // Extract context around the excerpt (150 chars before and after)
+    const contextBefore = 150;
+    const contextAfter = 150;
+    const startIndex = Math.max(0, excerptIndex - contextBefore);
+    const endIndex = Math.min(content.length, excerptIndex + excerpt.length + contextAfter);
+    
+    let relevantContent = content.substring(startIndex, endIndex);
+    
+    // Add ellipsis if we're not at the beginning/end
+    if (startIndex > 0) relevantContent = '...' + relevantContent;
+    if (endIndex < content.length) relevantContent = relevantContent + '...';
+    
+    return relevantContent;
   };
 
   const groupReferencesByDocument = () => {
@@ -146,6 +231,7 @@ export default function PDFReferenceViewer({
                     return (
                       <div 
                         key={index}
+                        data-reference-id={`${ref.documentId}:${ref.pageNumber}`}
                         className={`border-b border-gray-100 dark:border-gray-800 last:border-b-0 ${
                           isHighlighted ? 'bg-blue-50 dark:bg-blue-900/20' : ''
                         }`}
@@ -182,9 +268,40 @@ export default function PDFReferenceViewer({
                                   </svg>
                                 </button>
                               </div>
+
+                              {/* Context Expansion Controls */}
+                              <div className="border-b border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center justify-center py-2">
+                                  <button
+                                    onClick={() => expandContextBefore(sectionKey)}
+                                    className="flex items-center space-x-1 px-3 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                    <span>Show more above</span>
+                                  </button>
+                                </div>
+                              </div>
+
                               <div className="p-3">
                                 <div className="text-sm text-gray-700 dark:text-gray-300 font-mono whitespace-pre-wrap">
-                                  {section ? formatContent(section.content) : ref.relevantText}
+                                  {getExpandedContent(document, ref.pageNumber, sectionKey, ref)}
+                                </div>
+                              </div>
+
+                              {/* Context Expansion Controls - Bottom */}
+                              <div className="border-t border-gray-200 dark:border-gray-700">
+                                <div className="flex items-center justify-center py-2">
+                                  <button
+                                    onClick={() => expandContextAfter(sectionKey)}
+                                    className="flex items-center space-x-1 px-3 py-1 text-xs text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded transition-colors"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                    <span>Show more below</span>
+                                  </button>
                                 </div>
                               </div>
                             </div>
