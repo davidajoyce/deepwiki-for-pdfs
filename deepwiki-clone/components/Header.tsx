@@ -53,6 +53,12 @@ export default function Header() {
             >
               Search
             </Link>
+            <Link 
+              href="/chat" 
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              Chat
+            </Link>
           </nav>
         </div>
 

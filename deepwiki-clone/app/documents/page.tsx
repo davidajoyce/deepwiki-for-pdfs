@@ -71,11 +71,16 @@ export default function SimpleDocumentsPage() {
         </p>
         <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
           <p className="text-sm text-green-800 dark:text-green-200">
-            📍 <strong>Phase 3:</strong> Enhanced upload with PDF text extraction and search functionality. 
+            📍 <strong>Phase 4:</strong> Enhanced upload with PDF text extraction, search, and conversational AI. 
             {documents.length > 0 && (
-              <a href="/search" className="ml-2 underline font-medium">
-                🔍 Search your {documents.length} document(s)
-              </a>
+              <>
+                <a href="/search" className="ml-2 underline font-medium">
+                  🔍 Search your {documents.length} document(s)
+                </a>
+                <a href="/chat" className="ml-2 underline font-medium">
+                  💬 Chat with your documents
+                </a>
+              </>
             )}
           </p>
         </div>
