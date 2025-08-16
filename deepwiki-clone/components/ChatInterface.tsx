@@ -25,6 +25,8 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const referencePanelRef = useRef<HTMLDivElement>(null);
+  const [leftPanelWidth, setLeftPanelWidth] = useState(60); // Default 60% for chat
+  const [isDragging, setIsDragging] = useState(false);
 
   // Update AI service with documents when they change
   useEffect(() => {
@@ -138,6 +140,40 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
     }
   };
 
+  // Handle resizable panel dragging
+  const handleMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true);
+    e.preventDefault();
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (!isDragging) return;
+    
+    const containerWidth = window.innerWidth;
+    const newLeftWidth = (e.clientX / containerWidth) * 100;
+    
+    // Constrain between 30% and 80%
+    const constrainedWidth = Math.min(Math.max(newLeftWidth, 30), 80);
+    setLeftPanelWidth(constrainedWidth);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+
+  // Add and remove mouse event listeners
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleMouseMove);
+        document.removeEventListener('mouseup', handleMouseUp);
+      };
+    }
+  }, [isDragging]);
+
   if (documents.length === 0) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -155,7 +191,10 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
   return (
     <div className="h-screen flex relative">
       {/* Main Chat Panel - DeepWiki Style */}
-      <div className="flex-1 flex flex-col relative">
+      <div 
+        className="flex flex-col relative"
+        style={{ width: `${leftPanelWidth}%` }}
+      >
         {/* Header */}
         <div className="border-b border-gray-200 dark:border-gray-700 p-4 bg-white dark:bg-gray-900 z-10">
           <div className="flex items-center justify-between">
@@ -339,8 +378,24 @@ export default function ChatInterface({ documents }: ChatInterfaceProps) {
         </div>
       </div>
 
+      {/* Draggable Splitter */}
+      <div
+        className={`w-1 bg-gray-200 dark:bg-gray-700 hover:bg-blue-500 dark:hover:bg-blue-400 cursor-col-resize flex-shrink-0 transition-colors ${
+          isDragging ? 'bg-blue-500 dark:bg-blue-400' : ''
+        }`}
+        onMouseDown={handleMouseDown}
+      >
+        {/* Visual indicator */}
+        <div className="w-full h-full flex items-center justify-center">
+          <div className="w-0.5 h-8 bg-gray-400 dark:bg-gray-500 rounded-full"></div>
+        </div>
+      </div>
+
       {/* Enhanced References Panel - DeepWiki Style */}
-      <div className="w-96 border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-col">
+      <div 
+        className="border-l border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex flex-col"
+        style={{ width: `${100 - leftPanelWidth}%` }}
+      >
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900">
           <h2 className="font-semibold text-gray-900 dark:text-gray-100">Document References</h2>
           {allReferences.length > 0 && (
