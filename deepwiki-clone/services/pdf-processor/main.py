@@ -168,7 +168,7 @@ async def analyze_document(
     extraction_response = await extract_text(file, document_id)
     
     # Perform basic analysis
-    text = extraction_response.text_content
+    text = extraction_response['text_content']
     
     # Simple text analysis
     sentences = [s.strip() for s in text.split('.') if s.strip()]
@@ -176,18 +176,18 @@ async def analyze_document(
     
     # Basic statistics
     analysis = {
-        'document_id': extraction_response.document_id,
-        'filename': extraction_response.filename,
+        'document_id': extraction_response['document_id'],
+        'filename': extraction_response['filename'],
         'basic_stats': {
-            'page_count': extraction_response.page_count,
-            'word_count': extraction_response.word_count,
+            'page_count': extraction_response['page_count'],
+            'word_count': extraction_response['word_count'],
             'sentence_count': len(sentences),
             'paragraph_count': len(paragraphs),
-            'avg_words_per_page': extraction_response.word_count / extraction_response.page_count if extraction_response.page_count > 0 else 0
+            'avg_words_per_page': extraction_response['word_count'] / extraction_response['page_count'] if extraction_response['page_count'] > 0 else 0
         },
-        'text_content': extraction_response.text_content,
-        'metadata': extraction_response.metadata,
-        'sections': extraction_response.sections,
+        'text_content': extraction_response['text_content'],
+        'metadata': extraction_response['metadata'],
+        'sections': extraction_response['sections'],
         'analysis_timestamp': int(time.time() * 1000)
     }
     
