@@ -40,13 +40,20 @@ export default function Header() {
             </span>
           </Link>
           
-          <Link 
-            href="/private-repo" 
-            className="hidden md:flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
-          >
-            Get free private DeepWikis with
-            <span className="text-primary font-semibold">Devin</span>
-          </Link>
+          <nav className="hidden md:flex items-center gap-4">
+            <Link 
+              href="/documents" 
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              Documents
+            </Link>
+            <Link 
+              href="/search" 
+              className="text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+            >
+              Search
+            </Link>
+          </nav>
         </div>
 
         <div className="flex items-center gap-4">

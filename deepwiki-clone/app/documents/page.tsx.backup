@@ -1,0 +1,62 @@
+"use client";
+
+import { useState } from "react";
+import { useUser } from "@/lib/user-context";
+import PDFUpload from "@/components/PDFUpload";
+import DocumentList from "@/components/DocumentList";
+
+export default function DocumentsPage() {
+  const { user, isLoading } = useUser();
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const handleUploadComplete = () => {
+    // Trigger refresh of document list
+    setRefreshTrigger(prev => prev + 1);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-lg">Please sign in to manage documents</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Your Documents</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          Upload and manage your PDF documents for AI-powered analysis
+        </p>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-12">
+        {/* Upload Section */}
+        <div className="lg:col-span-4">
+          <div className="sticky top-4">
+            <h2 className="text-xl font-semibold mb-4">Upload PDFs</h2>
+            <PDFUpload onUploadComplete={handleUploadComplete} />
+          </div>
+        </div>
+
+        {/* Document List Section */}
+        <div className="lg:col-span-8">
+          <h2 className="text-xl font-semibold mb-4">Your Documents</h2>
+          <DocumentList 
+            userId={user.id} 
+            refreshTrigger={refreshTrigger}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
