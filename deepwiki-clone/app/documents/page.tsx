@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useUser } from "@/lib/user-context";
 import EnhancedPDFUpload from "@/components/EnhancedPDFUpload";
 import EnhancedDocumentList from "@/components/EnhancedDocumentList";
@@ -20,6 +20,23 @@ interface Document {
 export default function SimpleDocumentsPage() {
   const { user, isLoading } = useUser();
   const [documents, setDocuments] = useState<Document[]>([]);
+
+  // Load documents from localStorage on mount
+  useEffect(() => {
+    const savedDocs = localStorage.getItem('deepwiki-documents');
+    if (savedDocs) {
+      try {
+        setDocuments(JSON.parse(savedDocs));
+      } catch (error) {
+        console.error('Failed to load documents:', error);
+      }
+    }
+  }, []);
+
+  // Save documents to localStorage whenever documents change
+  useEffect(() => {
+    localStorage.setItem('deepwiki-documents', JSON.stringify(documents));
+  }, [documents]);
 
   const handleUploadComplete = (newDocs: Document[]) => {
     setDocuments(prev => [...prev, ...newDocs]);
@@ -54,7 +71,12 @@ export default function SimpleDocumentsPage() {
         </p>
         <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
           <p className="text-sm text-green-800 dark:text-green-200">
-            📍 <strong>Phase 2:</strong> Enhanced upload with PDF text extraction and analysis. Start the PDF processing service for full functionality.
+            📍 <strong>Phase 3:</strong> Enhanced upload with PDF text extraction and search functionality. 
+            {documents.length > 0 && (
+              <a href="/search" className="ml-2 underline font-medium">
+                🔍 Search your {documents.length} document(s)
+              </a>
+            )}
           </p>
         </div>
       </div>
