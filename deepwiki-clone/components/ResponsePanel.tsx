@@ -4,9 +4,10 @@ import { useState } from 'react'
 
 interface ResponsePanelProps {
   content: string
+  onFileReferenceClick?: (fileRef: string) => void
 }
 
-export default function ResponsePanel({ content }: ResponsePanelProps) {
+export default function ResponsePanel({ content, onFileReferenceClick }: ResponsePanelProps) {
   const [copied, setCopied] = useState(false)
 
   const handleCopy = () => {
@@ -50,6 +51,7 @@ export default function ResponsePanel({ content }: ResponsePanelProps) {
   }
 
   const renderInlineCode = (text: string) => {
+    // First split by backticks for code blocks
     const parts = text.split(/`([^`]+)`/)
     return parts.map((part, index) => {
       if (index % 2 === 1) {
@@ -59,8 +61,48 @@ export default function ResponsePanel({ content }: ResponsePanelProps) {
           </code>
         )
       }
-      return part
+      // For non-code parts, check for file references
+      return renderWithFileReferences(part, index)
     })
+  }
+
+  const renderWithFileReferences = (text: string, baseIndex: number) => {
+    // Match file references like "README.md:41" or "S3KeySource.kt:12-33"
+    const fileRefPattern = /([a-zA-Z0-9._-]+\.(?:md|kt|java|js|ts|py|go|rs|cpp|h|gradle)):(\d+(?:-\d+)?)/g
+    const parts = []
+    let lastIndex = 0
+    let match
+
+    while ((match = fileRefPattern.exec(text)) !== null) {
+      // Add text before the match
+      if (match.index > lastIndex) {
+        parts.push(text.substring(lastIndex, match.index))
+      }
+      
+      // Add the clickable file reference
+      const fullRef = match[0]
+      const fileName = match[1]
+      const lineRef = match[2]
+      
+      parts.push(
+        <button
+          key={`${baseIndex}-${match.index}`}
+          onClick={() => onFileReferenceClick?.(fullRef)}
+          className="inline-flex items-center gap-1 text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 hover:underline text-sm font-medium"
+        >
+          {fileName}:{lineRef}
+        </button>
+      )
+      
+      lastIndex = match.index + match[0].length
+    }
+    
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push(text.substring(lastIndex))
+    }
+    
+    return parts.length === 1 ? parts[0] : parts
   }
 
   return (

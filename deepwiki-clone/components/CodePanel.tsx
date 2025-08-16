@@ -16,9 +16,10 @@ interface CodeSnippet {
 
 interface CodePanelProps {
   snippets: CodeSnippet[]
+  activeReference?: string | null
 }
 
-export default function CodePanel({ snippets }: CodePanelProps) {
+export default function CodePanel({ snippets, activeReference }: CodePanelProps) {
   const [expandedSnippets, setExpandedSnippets] = useState<Set<number>>(new Set([0]))
 
   const toggleSnippet = (index: number) => {
@@ -39,6 +40,7 @@ export default function CodePanel({ snippets }: CodePanelProps) {
           snippet={snippet}
           isExpanded={expandedSnippets.has(index)}
           onToggle={() => toggleSnippet(index)}
+          activeReference={activeReference}
         />
       ))}
     </div>
@@ -49,11 +51,26 @@ interface CodeSnippetCardProps {
   snippet: CodeSnippet
   isExpanded: boolean
   onToggle: () => void
+  activeReference?: string | null
 }
 
-function CodeSnippetCard({ snippet, isExpanded, onToggle }: CodeSnippetCardProps) {
+function CodeSnippetCard({ snippet, isExpanded, onToggle, activeReference }: CodeSnippetCardProps) {
+  // Check if this snippet matches the active reference
+  const isActiveSnippet = activeReference && (
+    activeReference.includes(snippet.file) ||
+    snippet.file.includes(activeReference.split(':')[0])
+  )
+  
+  // Generate unique ID for this snippet
+  const snippetId = `code-ref-${snippet.file.replace(/[^a-zA-Z0-9]/g, '-')}`
+
   return (
-    <div className="border-b border-gray-200 dark:border-gray-800">
+    <div 
+      id={snippetId}
+      className={`border-b border-gray-200 dark:border-gray-800 transition-all duration-300 ${
+        isActiveSnippet ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' : ''
+      }`}
+    >
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
@@ -122,16 +139,42 @@ function CodeSnippetCard({ snippet, isExpanded, onToggle }: CodeSnippetCardProps
             <div className="bg-white dark:bg-gray-900 rounded-md border border-gray-200 dark:border-gray-700 overflow-hidden">
               <pre className="overflow-x-auto text-sm">
                 <code className="block p-4">
-                  {snippet.lines.map((line) => (
-                    <div key={line.number} className="flex">
-                      <span className="select-none text-gray-400 dark:text-gray-500 w-8 text-right mr-4 font-mono text-xs">
-                        {line.number}
-                      </span>
-                      <span className="font-mono text-xs leading-relaxed">
-                        {line.content}
-                      </span>
-                    </div>
-                  ))}
+                  {snippet.lines.map((line) => {
+                    // Check if this line is highlighted by the active reference
+                    const isHighlightedLine = activeReference && (() => {
+                      const refParts = activeReference.split(':')
+                      if (refParts.length < 2) return false
+                      
+                      const fileName = refParts[0]
+                      const lineRange = refParts[1]
+                      
+                      if (!snippet.file.includes(fileName)) return false
+                      
+                      if (lineRange.includes('-')) {
+                        const [start, end] = lineRange.split('-').map(Number)
+                        return line.number >= start && line.number <= end
+                      } else {
+                        return line.number === parseInt(lineRange)
+                      }
+                    })()
+                    
+                    return (
+                      <div 
+                        key={line.number} 
+                        className={`flex transition-colors duration-200 ${
+                          isHighlightedLine ? 'bg-yellow-100 dark:bg-yellow-900/30' : ''
+                        }`}
+                        id={`line-${line.number}`}
+                      >
+                        <span className="select-none text-gray-400 dark:text-gray-500 w-8 text-right mr-4 font-mono text-xs">
+                          {line.number}
+                        </span>
+                        <span className="font-mono text-xs leading-relaxed">
+                          {line.content}
+                        </span>
+                      </div>
+                    )
+                  })}
                 </code>
               </pre>
             </div>

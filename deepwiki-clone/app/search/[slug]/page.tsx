@@ -1,3 +1,6 @@
+'use client'
+
+import { useState } from 'react'
 import QueryDisplay from '@/components/QueryDisplay'
 import SplitPanel from '@/components/SplitPanel'
 import ResponsePanel from '@/components/ResponsePanel'
@@ -12,11 +15,11 @@ const mockResponse = {
 
 ## S3 Models in Misk
 
-Misk provides S3 integration primarily through the \`misk-aws\` module, which includes S3 client configuration and cryptographic key management.
+Misk provides S3 integration primarily through the \`misk-aws\` module, which includes S3 client configuration and cryptographic key management. README.md:41
 
 ### S3 Client Configuration
 
-The main S3 model is provided through the \`RealS3Module\` class, which configures the AWS S3 client:
+The main S3 model is provided through the \`RealS3Module\` class, which configures the AWS S3 client: misk-aws.api:232-237
 
 This module provides:
 - S3 client configuration through \`configureClient()\` method
@@ -24,13 +27,17 @@ This module provides:
 
 ### S3 Key Management
 
-A more sophisticated S3 model exists in the crypto module through \`S3KeySource\`, which implements external key management using S3:
+A more sophisticated S3 model exists in the crypto module through \`S3KeySource\`, which implements external key management using S3: S3KeySource.kt:12-33
 
 The \`S3KeySource\` class provides:
 - Fetches Tink keysets from S3 buckets
 - Uses envelope key encryption with KMS
 - Organizes keys by alias and region in a specific bucket structure
-- Handles cross-region bucket access with separate S3 clients when needed`,
+- Handles cross-region bucket access with separate S3 clients when needed S3KeySource.kt:49-58
+
+### Dependencies
+
+The S3 functionality depends on AWS SDK libraries as defined in the build configuration: build.gradle.kts:10-12`,
     codeRefs: [
       { file: "README.md", line: 41 },
       { file: "misk-aws.api", lines: "232-237" },
@@ -81,6 +88,19 @@ interface PageProps {
 }
 
 export default function SearchPage({ params }: PageProps) {
+  const [activeReference, setActiveReference] = useState<string | null>(null)
+
+  const handleFileReferenceClick = (fileRef: string) => {
+    setActiveReference(fileRef)
+    // Scroll to the corresponding code section
+    const fileName = fileRef.split(':')[0]
+    const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9]/g, '-')
+    const element = document.getElementById(`code-ref-${sanitizedFileName}`)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }
+
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] w-full flex-col">
       <QueryDisplay 
@@ -89,8 +109,14 @@ export default function SearchPage({ params }: PageProps) {
       />
       
       <SplitPanel>
-        <ResponsePanel content={mockResponse.response.content} />
-        <CodePanel snippets={mockResponse.codeSnippets} />
+        <ResponsePanel 
+          content={mockResponse.response.content} 
+          onFileReferenceClick={handleFileReferenceClick}
+        />
+        <CodePanel 
+          snippets={mockResponse.codeSnippets} 
+          activeReference={activeReference}
+        />
       </SplitPanel>
     </div>
   )
