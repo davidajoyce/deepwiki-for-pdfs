@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useUser } from "@/lib/user-context";
-import SimplePDFUpload from "@/components/SimplePDFUpload";
-import SimpleDocumentList from "@/components/SimpleDocumentList";
+import EnhancedPDFUpload from "@/components/EnhancedPDFUpload";
+import EnhancedDocumentList from "@/components/EnhancedDocumentList";
+import { PDFAnalysisResult } from "@/lib/pdf-service";
 
 interface Document {
   id: string;
@@ -12,6 +13,8 @@ interface Document {
   fileSize: number;
   uploadedAt: number;
   status: string;
+  textContent?: string;
+  analysis?: PDFAnalysisResult;
 }
 
 export default function SimpleDocumentsPage() {
@@ -49,9 +52,9 @@ export default function SimpleDocumentsPage() {
         <p className="text-gray-600 dark:text-gray-400">
           Upload and manage your PDF documents for AI-powered analysis
         </p>
-        <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-          <p className="text-sm text-blue-800 dark:text-blue-200">
-            📍 <strong>Phase 1 Demo:</strong> This is a basic upload interface. Document processing, search, and AI analysis will be implemented in future phases.
+        <div className="mt-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+          <p className="text-sm text-green-800 dark:text-green-200">
+            📍 <strong>Phase 2:</strong> Enhanced upload with PDF text extraction and analysis. Start the PDF processing service for full functionality.
           </p>
         </div>
       </div>
@@ -61,7 +64,7 @@ export default function SimpleDocumentsPage() {
         <div className="lg:col-span-4">
           <div className="sticky top-4">
             <h2 className="text-xl font-semibold mb-4">Upload PDFs</h2>
-            <SimplePDFUpload onUploadComplete={handleUploadComplete} />
+            <EnhancedPDFUpload onUploadComplete={handleUploadComplete} />
           </div>
         </div>
 
@@ -70,7 +73,7 @@ export default function SimpleDocumentsPage() {
           <h2 className="text-xl font-semibold mb-4">
             Your Documents ({documents.length})
           </h2>
-          <SimpleDocumentList 
+          <EnhancedDocumentList 
             documents={documents}
             onDelete={handleDelete}
           />
